@@ -1,136 +1,141 @@
 package com.example.menntuneducationalapplication.ui.login;
 
-import android.app.Activity;
-
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
-
+import android.content.Intent;
 import android.os.Bundle;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.StringRes;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.text.Editable;
-import android.text.TextWatcher;
-import android.view.KeyEvent;
 import android.view.View;
-import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.menntuneducationalapplication.CreateQuiz1;
+import com.example.menntuneducationalapplication.GlobalStudent;
+import com.example.menntuneducationalapplication.GlobalTutor;
+import com.example.menntuneducationalapplication.MainActivityStudent;
+import com.example.menntuneducationalapplication.MainActivityTutor;
 import com.example.menntuneducationalapplication.R;
-import com.example.menntuneducationalapplication.ui.login.LoginViewModel;
-import com.example.menntuneducationalapplication.ui.login.LoginViewModelFactory;
-import com.example.menntuneducationalapplication.databinding.ActivityLoginBinding;
+import com.example.menntuneducationalapplication.RegView;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private LoginViewModel loginViewModel;
-    private ActivityLoginBinding binding;
+    Button stdLogin,tutLogin,Register;
+    EditText usName,pwd;
+    DatabaseReference dbRefToLogin;
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_login);
 
-        binding = ActivityLoginBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        usName = findViewById(R.id.username);
+        pwd = findViewById(R.id.password);
+        stdLogin = findViewById(R.id.studentLog);
+        tutLogin = findViewById(R.id.tutorLog);
+        Register = findViewById(R.id.registerBtn);
 
-        loginViewModel = new ViewModelProvider(this, new LoginViewModelFactory())
-                .get(LoginViewModel.class);
+        dbRefToLogin = FirebaseDatabase.getInstance().getReference();
 
-        final EditText usernameEditText = binding.username;
-        final EditText passwordEditText = binding.password;
-        final Button loginButton = binding.login;
-        final ProgressBar loadingProgressBar = binding.loading;
-
-        loginViewModel.getLoginFormState().observe(this, new Observer<LoginFormState>() {
+        tutLogin.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onChanged(@Nullable LoginFormState loginFormState) {
-                if (loginFormState == null) {
-                    return;
+            public void onClick(View view) {
+                String username = usName.getText().toString();
+                String password = pwd.getText().toString();
+
+                if(username.isEmpty() || password.isEmpty()){
+                    Toast.makeText(LoginActivity.this, "Please Enter Credentials", Toast.LENGTH_SHORT).show();
                 }
-                loginButton.setEnabled(loginFormState.isDataValid());
-                if (loginFormState.getUsernameError() != null) {
-                    usernameEditText.setError(getString(loginFormState.getUsernameError()));
-                }
-                if (loginFormState.getPasswordError() != null) {
-                    passwordEditText.setError(getString(loginFormState.getPasswordError()));
+                else{
+                    dbRefToLogin.child("Tutors").addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            if(snapshot.hasChild(username)){
+                                String gotPwd = snapshot.child(username).child("password").getValue(String.class);
+                                if(gotPwd.equals(password)){
+                                    GlobalTutor._USER = username;
+                                    GlobalTutor._PWD= password;
+                                    GlobalTutor._NAME = String.valueOf(snapshot.child(username).child("fullName").getValue());
+                                    GlobalTutor._EMAIL = String.valueOf(snapshot.child(username).child("email").getValue());
+                                    GlobalTutor._DOB = String.valueOf(snapshot.child(username).child("dob").getValue());
+                                    GlobalTutor._PHONE = String.valueOf(snapshot.child(username).child("phone").getValue());
+                                    Toast.makeText(LoginActivity.this, "Login Successful", Toast.LENGTH_SHORT).show();
+                                    Intent i = new Intent(LoginActivity.this,MainActivityTutor.class);
+                                    startActivity(i);
+                                }
+                                else{
+                                    Toast.makeText(LoginActivity.this, "Invalid credentials, Try Again!", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+
+                        }
+                    });
                 }
             }
         });
-
-        loginViewModel.getLoginResult().observe(this, new Observer<LoginResult>() {
+        stdLogin.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onChanged(@Nullable LoginResult loginResult) {
-                if (loginResult == null) {
-                    return;
+            public void onClick(View view) {
+                String username = usName.getText().toString();
+                String password = pwd.getText().toString();
+
+                if(username.isEmpty() || password.isEmpty()){
+                    Toast.makeText(LoginActivity.this, "Please Enter Credentials", Toast.LENGTH_SHORT).show();
                 }
-                loadingProgressBar.setVisibility(View.GONE);
-                if (loginResult.getError() != null) {
-                    showLoginFailed(loginResult.getError());
+                else{
+                    dbRefToLogin.child("Students").addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            if(snapshot.hasChild(username)){
+                                String gotPwd = snapshot.child(username).child("password").getValue(String.class);
+                                if(gotPwd.equals(password)){
+                                    GlobalStudent._USER = username;
+                                    GlobalStudent._PWD= password;
+                                    GlobalStudent._NAME = String.valueOf(snapshot.child(username).child("fullName").getValue());
+                                    GlobalStudent._EMAIL = String.valueOf(snapshot.child(username).child("email").getValue());
+                                    GlobalStudent._DOB = String.valueOf(snapshot.child(username).child("dob").getValue());
+                                    GlobalStudent._GRADE = String.valueOf(snapshot.child(username).child("grade").getValue());
+                                    GlobalStudent._PHONE = String.valueOf(snapshot.child(username).child("phone").getValue());
+                                    Toast.makeText(LoginActivity.this, "Login Successful", Toast.LENGTH_SHORT).show();
+                                    Intent i = new Intent(LoginActivity.this,MainActivityStudent.class);
+                                    startActivity(i);
+                                }
+                                else{
+                                    Toast.makeText(LoginActivity.this, "Invalid credentials, Try Again!", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+
+                        }
+                    });
                 }
-                if (loginResult.getSuccess() != null) {
-                    updateUiWithUser(loginResult.getSuccess());
-                }
-                setResult(Activity.RESULT_OK);
-
-                //Complete and destroy login activity once successful
-                finish();
-            }
-        });
-
-        TextWatcher afterTextChangedListener = new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-                // ignore
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                // ignore
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                loginViewModel.loginDataChanged(usernameEditText.getText().toString(),
-                        passwordEditText.getText().toString());
-            }
-        };
-        usernameEditText.addTextChangedListener(afterTextChangedListener);
-        passwordEditText.addTextChangedListener(afterTextChangedListener);
-        passwordEditText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-
-            @Override
-            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    loginViewModel.login(usernameEditText.getText().toString(),
-                            passwordEditText.getText().toString());
-                }
-                return false;
-            }
-        });
-
-        loginButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                loadingProgressBar.setVisibility(View.VISIBLE);
-                loginViewModel.login(usernameEditText.getText().toString(),
-                        passwordEditText.getText().toString());
             }
         });
     }
-
-    private void updateUiWithUser(LoggedInUserView model) {
-        String welcome = getString(R.string.welcome) + model.getDisplayName();
-        // TODO : initiate successful logged in experience
-        Toast.makeText(getApplicationContext(), welcome, Toast.LENGTH_LONG).show();
+    public void StudentLogin(View view){
+        Intent X=new Intent(this, MainActivityStudent.class);
+        startActivity(X);
+    }
+    public void TutorLogin(View view){
+        Intent i =  new Intent(this, MainActivityTutor.class);
+        startActivity(i);
+    }
+    public void Register(View view){
+        Intent i =  new Intent(this, RegView.class);
+        startActivity(i);
     }
 
-    private void showLoginFailed(@StringRes Integer errorString) {
-        Toast.makeText(getApplicationContext(), errorString, Toast.LENGTH_SHORT).show();
-    }
 }
