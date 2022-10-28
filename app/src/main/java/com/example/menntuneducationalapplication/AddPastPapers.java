@@ -17,111 +17,123 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+
+import javax.security.auth.Subject;
 
 
-public class AddPastPapers extends AppCompatActivity implements AdapterView.OnItemSelectedListener{
+public class AddPastPapers extends AppCompatActivity {
 
-    //variable
-    EditText subject;
-    Spinner spinner2;
-    String grade[];
-    Button upload;
-    Button submit;
-    Spinner spinner1;
-    String year[];
-    EditText pdfname;
+
+    Button upload_btn;
+    EditText Subject;
+    Spinner yearS;
+    Spinner gradeS;
+    long maxId = 0;
 
 
 
-    DatabaseReference PastPaperDbRef;
+    StorageReference storageReference;
+    DatabaseReference databaseReference;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_past_papers);
 
-        spinner1 = findViewById(R.id.yearSpinner);
-        subject = findViewById(R.id.subjectPP);
-        spinner2 = findViewById(R.id.gradepp);
-        upload = findViewById(R.id.UploadPPbtn);
-        submit = findViewById(R.id.submitPP);
-        pdfname=findViewById(R.id.UploadPPtext);
+        upload_btn = findViewById(R.id.UploadPPbtn);
+        Subject = findViewById(R.id.subjectPP);
+        yearS = findViewById(R.id.yearSpinner);
+        gradeS = findViewById(R.id.gradepp);
 
+        //database
+        storageReference = FirebaseStorage.getInstance().getReference();
+        databaseReference = FirebaseDatabase.getInstance().getReference().child("PastPaper");
 
-        PastPaperDbRef = FirebaseDatabase.getInstance().getReference().child("PastPaper");
-
-
-        submit.setOnClickListener(new View.OnClickListener() {
+        databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
-            public void onClick(View view) {
-                insertPastPaperData();
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if(snapshot.exists()){
+                    maxId = snapshot.getChildrenCount();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
             }
         });
 
 
-        ArrayAdapter<CharSequence> adapter =  ArrayAdapter.createFromResource(this,R.array.year, android.R.layout.simple_spinner_item);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner1.setAdapter(adapter);
-        spinner1.setOnItemSelectedListener(this);
+        upload_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
 
+                selectFiles();
 
-        ArrayAdapter<CharSequence> adapter1 =  ArrayAdapter.createFromResource(this,R.array.grade, android.R.layout.simple_spinner_item);
-        adapter1.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner2.setAdapter(adapter1);
-        spinner2.setOnItemSelectedListener(this);
-
+            }
+        });
     }
 
-
-
-
-    private void insertPastPaperData(){
-        String Subject = subject.getText().toString();
-        String year = spinner1.getSelectedItem().toString();
-        String Grade = spinner2.getSelectedItem().toString();
-
-
-        PastPapers PP = new PastPapers(Subject,year,Grade);
-        PastPaperDbRef.push().setValue(PP);
-        Toast.makeText(AddPastPapers.this,"Data Insert",Toast.LENGTH_SHORT).show();
-
-
+    private void selectFiles() {
+        Intent intent = new Intent();
+        intent.setType("application/pdf");
+        intent.setAction(Intent.ACTION_GET_CONTENT);
+        startActivityForResult(Intent.createChooser(intent, "select pdf file"), 1);
     }
 
     @Override
-    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-        String text = adapterView.getItemAtPosition(i).toString();
-        Toast.makeText(adapterView.getContext(),text,Toast.LENGTH_LONG).show();
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == 1 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            UploadFiles(data.getData());
+        }
+
     }
 
-    @Override
-    public void onNothingSelected(AdapterView<?> adapterView) {
+    private void UploadFiles(Uri data) {
 
-    }
+        final ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Uploading...");
+        progressDialog.show();
 
-    public class PastPapers{
-        String Subject;
-        String year;
-        String Grade;
+        StorageReference reference = storageReference.child("UploadsPP/" + System.currentTimeMillis() + ".pdf");
+        reference.putFile(data)
+                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
 
-        public PastPapers(String subject, String year, String grade) {
-            Subject = subject;
-            this.year = year;
-            this.Grade = grade;
-        }
 
-        public String getSubject() {
-            return Subject;
-        }
+                        Task<Uri> uriTask = taskSnapshot.getStorage().getDownloadUrl();
+                        while (!uriTask.isComplete()) ;
+                        Uri url = uriTask.getResult();
 
-        public String getYear() {
-            return year;
-        }
+                        uploadPDF uploadPDF = new uploadPDF( url.toString(),Subject.getText().toString(),yearS.getSelectedItem().toString(),gradeS.getSelectedItem().toString());
+                        databaseReference.child(String.valueOf(maxId+1)).setValue(uploadPDF);
 
-        public String getGrade() {
-            return Grade;
-        }
-    }
-}
+                        Toast.makeText(AddPastPapers.this, "File Upload", Toast.LENGTH_SHORT).show();
+
+                        progressDialog.dismiss();
+
+                    }
+                }).addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onProgress(@NonNull UploadTask.TaskSnapshot snapshot) {
+
+                        double progress=(100.0* snapshot.getBytesTransferred())/snapshot.getTotalByteCount();
+                        progressDialog.setMessage("Uploaded:"+(int)progress+"%");
+
+                    }
+                });
+    }}

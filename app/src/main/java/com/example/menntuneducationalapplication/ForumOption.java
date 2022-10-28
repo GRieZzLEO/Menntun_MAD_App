@@ -22,7 +22,7 @@ import com.google.firebase.database.ValueEventListener;
 
 public class ForumOption extends AppCompatActivity {
 
-    String ForumName;
+    String ForumName,ques;
     Button BtV,BtU,BtD,BtR;
     EditText tv;
 
@@ -35,12 +35,13 @@ public class ForumOption extends AppCompatActivity {
         setContentView(R.layout.activity_forum_option);
 
         ForumName = getIntent().getStringExtra("Q");
+        ques= getIntent().getStringExtra("Z");
         BtR = findViewById(R.id.rep);
         BtV = findViewById(R.id.seeReplies);
         BtU = findViewById(R.id.Edit);
         BtD = findViewById(R.id.Del);
         tv = findViewById(R.id.forumQues);
-        tv.setText(ForumName);
+        tv.setText(ques);
 
         dbRef= FirebaseDatabase.getInstance().getReference().child("Forums");
         String sub=String.valueOf(dbRef.child(ForumName).child("subject"));
@@ -110,7 +111,7 @@ public class ForumOption extends AppCompatActivity {
             public void onClick(View view) {
                 dbRef.child(ForumName).setValue(null);
                 Toast.makeText(ForumOption.this,"Content Deleted ",Toast.LENGTH_SHORT).show();
-                Intent X = new Intent(ForumOption.this,MainActivityTutor.class);
+                Intent X = new Intent(ForumOption.this,SubjectSelectorForForums.class);
                 startActivity(X);
             }
         });
