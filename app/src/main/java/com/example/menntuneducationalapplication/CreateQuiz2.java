@@ -183,7 +183,7 @@ public class CreateQuiz2 extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 bottomSheetDialog.dismiss();
-                finish();
+                startActivity(new Intent(CreateQuiz2.this,QuizzesTutor.class));
             }
         });
         bottomSheetDialog.setCancelable(false);
